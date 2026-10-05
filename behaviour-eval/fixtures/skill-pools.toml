@@ -1,0 +1,17 @@
+# Default eval pools. mattpocock/skills is pinned by full commit sha; bump it
+# deliberately, never by branch.
+[[pools]]
+id = "mattpocock"
+kind = "git"
+uri = "https://github.com/mattpocock/skills"
+ref = "c55ee46073ed923f86ce59a5eb3b6d895095d1b7"
+root = "skills"
+
+# Overlay beats inference. Upstream marks these `disable-model-invocation`
+# (slash-command hygiene), but they only execute an existing spec: no captain
+# needed, so the picker may reach for them on any seat.
+[overlay.mattpocock.implement]
+needs_captain = false
+
+[overlay.mattpocock.implement-spec]
+needs_captain = false

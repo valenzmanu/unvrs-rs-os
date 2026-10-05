@@ -1,0 +1,22 @@
+[package]
+name = "drv_intf"
+description = "DrvIntf: captain Ratatui surface"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+ratatui.workspace = true
+crossterm.workspace = true
+libc.workspace = true
+uke.workspace = true
+drv_agent.workspace = true
+drv_hdff.workspace = true

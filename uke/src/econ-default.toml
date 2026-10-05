@@ -1,0 +1,82 @@
+# DrvEcon: task facts select a role and reasoning class independently.
+# First matching rule for each axis wins; absent thoroughness means deep.
+[policy]
+default_role = "worker"
+default_reasoning = "deep"
+# Only the captain may enable max. An explicit effort override also obeys this.
+allow_max = false
+
+[[policy.rules]]
+ranks = [1, 2]
+role = "judge"
+reason = "seat judgment"
+
+[[policy.rules]]
+kinds = ["design"]
+role = "design"
+reason = "design task"
+
+[[policy.rules]]
+judgment = "high"
+role = "judge"
+reason = "high judgment"
+
+[[policy.rules]]
+kinds = ["decide"]
+role = "judge"
+reason = "decision task"
+
+# Quick research uses its own candidates before the general research rule.
+[[policy.rules]]
+kinds = ["research"]
+thoroughness = "low"
+role = "research_quick"
+reasoning = "light"
+reason = "quick research task"
+
+# added 2026-10-01 at the captain's request
+[[policy.rules]]
+kinds = ["research"]
+role = "research"
+reason = "research task"
+
+[[policy.rules]]
+thoroughness = "low"
+reasoning = "light"
+reason = "low thoroughness"
+
+# Ordered candidates; missing/auth/quota/effort failures try the next candidate.
+# A selector is an exact harness model ID or "newest <family>".
+# Families resolve against the live harness catalog, never an invented model ID.
+[profiles]
+judge = [
+  { harness = "claude", model = "newest opus" },
+  { harness = "claude", model = "newest fable" },
+]
+worker = [
+  { harness = "codex", model = "newest sol" },
+  { harness = "claude", model = "newest opus" },
+]
+design = [{ harness = "claude", model = "newest opus" }]
+# Captain-approved research choices; edit here or in Settings.
+research_quick = [
+  { harness = "codex", model = "newest luna", effort = "medium" },
+  { harness = "claude", model = "newest sonnet", effort = "light" },
+]
+research = [
+  { harness = "claude", model = "newest sonnet", effort = "deep" },
+  { harness = "codex", model = "newest sol", effort = "low", captain_fallback = true },
+]
+
+[catalog]
+refresh_minutes = 5
+# Catalog/sign-in evidence must be fresh; unknown quota admits with a warning.
+max_age_minutes = 15
+
+# Preferred effort for each class. Each harness falls up to its nearest supported
+# level. A lower candidate pin requires captain_fallback and a visible receipt.
+# Max still requires allow_max.
+[reasoning]
+light = "low"
+deep = "high"
+max = "max"

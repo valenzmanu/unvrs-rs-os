@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# A8 · live 12-edge /test-handoffs regression. Needs all four authenticated ACP harnesses and spends
+# real model turns (up to ~35 min). Adapters may live under ~/.local/share/unvrs/acp (WezTerm PATH).
+set -euo pipefail
+cd "$(dirname "$0")/../.."
+export PATH="$HOME/.local/share/unvrs/acp/node_modules/.bin:$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+JOURNAL=behaviour-eval/journals/handoff-matrix-smoke.log
+mkdir -p "$(dirname "$JOURNAL")"
+cargo build -q -p unvrs
+WORK=$(mktemp -d)
+# Private copy: seats re-exec the binary, so a concurrent rebuild must not swap it mid-flight.
+cp target/debug/unvrs "$WORK/unvrs"
+BIN="$WORK/unvrs"
+SCRIPT="$PWD/behaviour-eval/scripts/handoff-matrix-smoke.py"
+set -o pipefail
+(cd "$WORK" && python3 "$SCRIPT" "$BIN") 2>&1 | tee "$JOURNAL"

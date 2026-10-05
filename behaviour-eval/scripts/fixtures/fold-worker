@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+"""Fixture brief worker (stands in for Luna on Pi): keeps every open item, records the
+fold, drops open items when the file $FOLD_CTL says drop-once or drop-always (to prove the rejection)."""
+import json, os, sys
+job = json.load(sys.stdin)
+prev = job.get("previous") or {}
+turns = job.get("turns") or []
+brief = dict(prev)
+brief.setdefault("goal", "fixture goal")
+brief["now"] = f"folded {len(turns)} turns"
+brief["open"] = list(prev.get("open") or [])
+for t in turns:
+    if "OPEN:" in t:
+        brief["open"].append(t.split("OPEN:", 1)[1].strip())
+ctl = os.environ.get("FOLD_CTL")
+mode = open(ctl).read().strip() if ctl and os.path.exists(ctl) else ""
+if mode == "drop-always" or (mode == "drop-once" and not job.get("rejected")):
+    brief["open"] = []
+brief["done"] = list(prev.get("done") or []) + [f"fold of {len(turns)} turns"]
+brief["decisions"] = list(prev.get("decisions") or [])
+print(json.dumps({"brief": brief, "notes": []}))

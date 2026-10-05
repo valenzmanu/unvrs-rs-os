@@ -1,0 +1,35 @@
+[workspace]
+resolver = "3"
+members = ["uke", "drv_agent", "drv_hdff", "drv_intf", "mapp_unvrs", "observatory", "unvrs"]
+default-members = ["unvrs"]
+
+[workspace.package]
+# Cargo 0.8.0 maps to voyage 0.8.0-eval.1.
+version = "0.8.0-bridge.7"
+edition = "2024"
+rust-version = "1.88"
+license = "MIT"
+authors = ["Manuel Valenzuela"]
+repository = "https://github.com/valenzmanu/unvrs-rs-os"
+homepage = "https://github.com/valenzmanu/unvrs-rs-os"
+publish = false
+
+[workspace.dependencies]
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ratatui = { version = "0.30", default-features = false, features = ["crossterm", "layout-cache", "unstable-rendered-line-info"] }
+crossterm = "0.29"
+libc = "0.2"
+toml = "0.9"
+ureq = { version = "3", features = ["json"] }
+uke = { path = "uke" }
+drv_agent = { path = "drv_agent" }
+drv_hdff = { path = "drv_hdff" }
+drv_intf = { path = "drv_intf" }
+observatory = { path = "observatory" }
+mapp_unvrs = { path = "mapp_unvrs" }
+
+[profile.release]
+strip = true
+lto = "thin"

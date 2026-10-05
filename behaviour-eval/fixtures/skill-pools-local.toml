@@ -1,0 +1,6 @@
+# Offline pool fixture: three skills, no network. Used by other slices' smokes.
+[[pools]]
+id = "local"
+kind = "path"
+uri = "pools/local"
+root = ""

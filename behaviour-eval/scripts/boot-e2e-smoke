@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+"""A7 · mission → Boot → install → ready | refused, with Obs log fields asserted."""
+import json
+from pathlib import Path
+from smokelib import MISSIONS, PROFILES, Smoke
+
+s = Smoke("boot-e2e-smoke")
+
+# Ready path: coding fixture, all four profiles, rules picker (deterministic; Jev is A5's job).
+ws = s.tmp / "ready"
+code, result = s.boot("coding-tdd.md", ws, "--picker", "rules", "--profile", "all")
+s.check("ready: exit 0 and state ready", code == 0 and result.get("state") == "ready", str(result)[:400])
+selected = result.get("pick", {}).get("selected", [])
+s.check("ready: nest plan 1..3", 1 <= len(selected) <= 3, str(selected))
+rows = {row["profile"]: row for row in result.get("install", [])}
+for profile in PROFILES:
+    row = rows.get(profile, {})
+    paths = [Path(item["path"]) for item in row.get("installed", [])]
+    s.check(f"ready: {profile} installed on disk", bool(row.get("ok")) and len(paths) == len(selected) and all(p.exists() for p in paths), str(row)[:300])
+kinds = [e["kind"] for e in s.events(ws)]
+s.check("obs: mission.admitted → boot.pick → agent.install×4 → boot.ready", kinds == ["mission.admitted", "boot.pick"] + ["agent.install"] * 4 + ["boot.ready"], str(kinds))
+pick = next((e for e in s.events(ws) if e["kind"] == "boot.pick"), {})
+fields = ["mission", "candidates", "catalog", "noul", "confidence", "selected", "backend_requested", "backend_used", "stripped", "seat"]
+s.check("obs: boot.pick fields", all(f in pick for f in fields), str([f for f in fields if f not in pick]))
+install = [e for e in s.events(ws) if e["kind"] == "agent.install"]
+s.check("obs: agent.install fields", all(all(f in e for f in ["mission", "profile", "ok", "installed", "harness_available"]) for e in install))
+registry = json.loads((ws / ".unvrs/missions.json").read_text())
+s.check("registry: mission active", "active" in json.dumps(registry.get("missions", registry)), str(registry)[:200])
+
+# Ready with an empty plan: nothing to install is still ready.
+code, result = s.boot("no-skill-needed.md", s.tmp / "bare", "--picker", "rules", "--profile", "claude")
+s.check("bare: ready with empty plan", code == 0 and result.get("state") == "ready" and result["pick"]["selected"] == [], str(result)[:300])
+
+# Refuse at admit: no done check.
+ws = s.tmp / "refuse-admit"
+code, out, err = s.unvrs("boot", MISSIONS / "bad/bad-no-done-check.md", "--workspace", ws, "--json")
+s.check("refuse-admit: nonzero + visible refused", code != 0 and '"refused"' in out and "one check" in (out + err), (out + err)[:300])
+kinds = [e["kind"] for e in s.events(ws)]
+s.check("refuse-admit: obs boot.refused only", kinds == ["boot.refused"], str(kinds))
+s.check("refuse-admit: nothing installed", not any((ws / d).exists() for d in [".claude", ".pi", ".agents", ".codex", ".cursor"]))
+
+# Refuse at pick: jev requested, no key, on_error = refuse.
+ws = s.tmp / "refuse-pick"
+(ws / ".unvrs").mkdir(parents=True)
+(ws / ".unvrs/boot.toml").write_text('[boot]\nbackend = "jev"\non_error = "refuse"\n')
+code, result = s.boot("bugfix.md", ws, env={"TYPESAFE_API_KEY": " "})
+s.check("refuse-pick: refused at pick", code != 0 and result.get("state") == "refused" and result.get("stage") == "pick", str(result)[:300])
+
+# Refuse at install: harness required but its executable is absent.
+ws = s.tmp / "refuse-install"
+code, result = s.boot("coding-tdd.md", ws, "--picker", "rules", "--profile", "codex", "--require-harness", env={"UNVRS_CODEX_ACP": "/nonexistent/codex-acp"})
+s.check("refuse-install: refused, reason names harness", code != 0 and result.get("state") == "refused" and "harness" in result.get("reason", ""), str(result)[:300])
+s.check("refuse-install: obs boot.refused", [e["kind"] for e in s.events(ws)][-1:] == ["boot.refused"])
+
+# Interactive policy end to end: grill fixture on an L3 worker installs no needs_captain skill.
+interactive = {e["id"] for e in s.catalog() if e["needs_captain"]}
+ws = s.tmp / "policy"
+code, result = s.boot("interactive-grill.md", ws, "--picker", "rules", "--seat", "l3", "--profile", "claude")
+installed = {Path(item["path"]).name for row in result.get("install", []) for item in row.get("installed", [])}
+s.check("policy: L3 worker gets no interactive skill on disk", code == 0 and not (installed & interactive), str(installed))
+s.finish()

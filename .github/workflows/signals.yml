@@ -1,0 +1,17 @@
+name: Process signal safety
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  check:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh scripts/check-signals.sh
+      - run: rustup toolchain install stable --profile minimal
+      - run: cargo +stable test --locked -p uke --lib signals::
+      - run: cargo +stable test --locked -p uke --test signals
+      - run: cargo +stable test --locked -p drv_agent --test headless_timeout

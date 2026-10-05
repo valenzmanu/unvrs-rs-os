@@ -1,0 +1,195 @@
+{
+  "response": {
+    "request_id": "unvrs-catalog-1",
+    "response": {
+      "models": [
+        {
+          "description": "Opus 5.5 \u00b7 Best for everyday, complex tasks",
+          "displayName": "Default (recommended)",
+          "resolvedModel": "claude-opus-5-5",
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true,
+          "supportsEffort": true,
+          "supportsFastMode": true,
+          "value": "default"
+        },
+        {
+          "description": "For complex work and everyday tasks",
+          "displayName": "Opus 5.5",
+          "resolvedModel": "claude-opus-5-5",
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true,
+          "supportsEffort": true,
+          "supportsFastMode": true,
+          "value": "opus"
+        },
+        {
+          "description": "For your toughest challenges",
+          "displayName": "Fable 5.1",
+          "resolvedModel": "claude-fable-5-1",
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true,
+          "supportsEffort": true,
+          "value": "claude-fable-5-1"
+        },
+        {
+          "description": "Most efficient for simpler tasks",
+          "displayName": "Sonnet 5.5",
+          "resolvedModel": "claude-sonnet-5-5",
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true,
+          "supportsEffort": true,
+          "value": "sonnet"
+        },
+        {
+          "description": "Fastest for quick answers",
+          "displayName": "Haiku 4.5",
+          "resolvedModel": "claude-haiku-4-5-20251001",
+          "value": "haiku"
+        },
+        {
+          "description": "Efficient for routine tasks",
+          "displayName": "Sonnet 5",
+          "resolvedModel": "claude-sonnet-5",
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true,
+          "supportsEffort": true,
+          "value": "claude-sonnet-5"
+        },
+        {
+          "description": "Best for everyday, complex tasks",
+          "displayName": "Opus 5",
+          "resolvedModel": "claude-opus-5",
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true,
+          "supportsEffort": true,
+          "supportsFastMode": true,
+          "value": "claude-opus-5"
+        },
+        {
+          "description": "Most capable for your hardest and longest-running tasks",
+          "displayName": "Fable 5",
+          "resolvedModel": "claude-fable-5",
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true,
+          "supportsEffort": true,
+          "value": "claude-fable-5"
+        },
+        {
+          "description": "Best for everyday, complex tasks",
+          "displayName": "Opus 4.8",
+          "resolvedModel": "claude-opus-4-8",
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true,
+          "supportsEffort": true,
+          "supportsFastMode": true,
+          "value": "claude-opus-4-8"
+        },
+        {
+          "description": "Best for everyday, complex tasks",
+          "displayName": "Opus 4.7",
+          "resolvedModel": "claude-opus-4-7",
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true,
+          "supportsEffort": true,
+          "value": "claude-opus-4-7"
+        },
+        {
+          "description": "Best for everyday, complex tasks",
+          "displayName": "Opus 4.6",
+          "resolvedModel": "claude-opus-4-6",
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true,
+          "supportsEffort": true,
+          "value": "claude-opus-4-6"
+        },
+        {
+          "description": "Efficient for routine tasks",
+          "displayName": "Sonnet 4.6",
+          "resolvedModel": "claude-sonnet-4-6",
+          "supportedEffortLevels": [
+            "low",
+            "medium",
+            "high",
+            "max"
+          ],
+          "supportsAdaptiveThinking": true,
+          "supportsAutoMode": true,
+          "supportsEffort": true,
+          "value": "claude-sonnet-4-6"
+        }
+      ]
+    },
+    "subtype": "success"
+  },
+  "type": "control_response"
+}

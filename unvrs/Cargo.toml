@@ -1,0 +1,26 @@
+[package]
+name = "unvrs"
+description = "UNVRS CLI: wires uKe and drivers; ctl, doctor, cockpit entry"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "unvrs"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+serde_json.workspace = true
+uke.workspace = true
+drv_agent.workspace = true
+drv_hdff.workspace = true
+drv_intf.workspace = true
+observatory.workspace = true
+mapp_unvrs.workspace = true
+libc.workspace = true

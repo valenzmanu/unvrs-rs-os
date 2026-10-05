@@ -1,0 +1,1022 @@
+{
+  "schema": [
+    {
+      "key": "econ.policy.default_role",
+      "section": "routing",
+      "label": "Default model profile",
+      "explanation": "Choose a model profile when no role rule matches. Example: worker tries the worker candidates.",
+      "type": "enum",
+      "default": "worker",
+      "allowed": [
+        "judge",
+        "worker",
+        "design",
+        "research"
+      ],
+      "range": null,
+      "file": "econ.toml",
+      "toml_path": [
+        "policy",
+        "default_role"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": false,
+      "fields": null
+    },
+    {
+      "key": "econ.policy.default_reasoning",
+      "section": "routing",
+      "label": "Default reasoning",
+      "explanation": "Choose reasoning when no reasoning rule matches. Example: deep requests the deep effort preference.",
+      "type": "enum",
+      "default": "deep",
+      "allowed": [
+        "light",
+        "deep",
+        "max"
+      ],
+      "range": null,
+      "file": "econ.toml",
+      "toml_path": [
+        "policy",
+        "default_reasoning"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": true,
+      "fields": null
+    },
+    {
+      "key": "econ.policy.allow_max",
+      "section": "routing",
+      "label": "Allow maximum reasoning",
+      "explanation": "Allow maximum reasoning and explicit maximum effort overrides. Example: true permits max; this can increase spending.",
+      "type": "bool",
+      "default": false,
+      "allowed": null,
+      "range": null,
+      "file": "econ.toml",
+      "toml_path": [
+        "policy",
+        "allow_max"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": true,
+      "fields": null
+    },
+    {
+      "key": "econ.policy.rules",
+      "section": "routing",
+      "label": "Routing rules",
+      "explanation": "The first matching rule for each axis wins; list order matters. Example: ranks [1, 2] selects judge for seats.",
+      "type": "ordered-list",
+      "default": [
+        {
+          "ranks": [
+            1,
+            2
+          ],
+          "role": "judge",
+          "reason": "seat judgment"
+        },
+        {
+          "kinds": [
+            "design"
+          ],
+          "role": "design",
+          "reason": "design task"
+        },
+        {
+          "judgment": "high",
+          "role": "judge",
+          "reason": "high judgment"
+        },
+        {
+          "kinds": [
+            "decide"
+          ],
+          "role": "judge",
+          "reason": "decision task"
+        },
+        {
+          "kinds": [
+            "research"
+          ],
+          "role": "research",
+          "reason": "research task"
+        },
+        {
+          "thoroughness": "low",
+          "reasoning": "light",
+          "reason": "low thoroughness"
+        }
+      ],
+      "allowed": null,
+      "range": null,
+      "file": "econ.toml",
+      "toml_path": [
+        "policy",
+        "rules"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": true,
+      "fields": {
+        "ranks": {
+          "type": "list",
+          "explanation": "Match these crew levels; an empty list matches any level. Example: [1, 2] matches the captain and leads.",
+          "allowed": [
+            1,
+            2,
+            3
+          ],
+          "required": false
+        },
+        "kinds": {
+          "type": "list",
+          "explanation": "Match these task kinds; an empty list matches any kind. Example: [\"design\"] matches design work.",
+          "allowed": [
+            "implement",
+            "review",
+            "validate",
+            "research",
+            "design",
+            "decide"
+          ],
+          "required": false
+        },
+        "judgment": {
+          "type": "enum",
+          "explanation": "Match the requested judgment level. Example: high selects tasks needing more judgment.",
+          "allowed": [
+            "low",
+            "high"
+          ],
+          "required": false
+        },
+        "thoroughness": {
+          "type": "enum",
+          "explanation": "Match the requested thoroughness. Example: low selects a lighter reasoning rule.",
+          "allowed": [
+            "low",
+            "high"
+          ],
+          "required": false
+        },
+        "role": {
+          "type": "enum",
+          "explanation": "Choose the model profile for matching tasks. Example: judge tries the judge candidates.",
+          "allowed": [
+            "judge",
+            "worker",
+            "design",
+            "research"
+          ],
+          "required": false
+        },
+        "reasoning": {
+          "type": "enum",
+          "explanation": "Choose reasoning independently from the model profile. Example: deep uses the deep effort preference.",
+          "allowed": [
+            "light",
+            "deep",
+            "max"
+          ],
+          "required": false
+        },
+        "reason": {
+          "type": "string",
+          "explanation": "Explain why this rule exists in route receipts. Example: seat judgment.",
+          "allowed": null,
+          "required": true
+        }
+      }
+    },
+    {
+      "key": "econ.catalog.refresh_minutes",
+      "section": "routing",
+      "label": "Catalog refresh interval",
+      "explanation": "Refresh harness model and quota evidence this often. Example: 5 checks every five minutes.",
+      "type": "int",
+      "default": 5,
+      "allowed": null,
+      "range": {
+        "min": 1,
+        "max": 307445734561825
+      },
+      "file": "econ.toml",
+      "toml_path": [
+        "catalog",
+        "refresh_minutes"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": false,
+      "fields": null
+    },
+    {
+      "key": "econ.catalog.max_age_minutes",
+      "section": "routing",
+      "label": "Oldest accepted catalog",
+      "explanation": "Hold tasks when required catalog evidence is older than this limit. Example: 15 rejects evidence older than fifteen minutes.",
+      "type": "int",
+      "default": 15,
+      "allowed": null,
+      "range": {
+        "min": 1,
+        "max": 307445734561825
+      },
+      "file": "econ.toml",
+      "toml_path": [
+        "catalog",
+        "max_age_minutes"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": true,
+      "fields": null
+    },
+    {
+      "key": "econ.profiles.judge",
+      "section": "routing",
+      "label": "Judge model choices",
+      "explanation": "Try these candidates in order until a ready model supports the required effort. Example: try codex newest sol, then claude newest opus.",
+      "type": "ordered-list",
+      "default": [
+        {
+          "harness": "claude",
+          "model": "newest opus"
+        },
+        {
+          "harness": "claude",
+          "model": "newest fable"
+        }
+      ],
+      "allowed": null,
+      "range": null,
+      "file": "econ.toml",
+      "toml_path": [
+        "profiles",
+        "judge"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": false,
+      "fields": {
+        "harness": {
+          "type": "enum",
+          "explanation": "Choose the harness that runs this candidate. Example: codex.",
+          "allowed": [
+            "codex",
+            "claude"
+          ],
+          "required": true
+        },
+        "model": {
+          "type": "string",
+          "explanation": "Use an exact catalog model ID or a newest-family selector. Example: newest sonnet.",
+          "allowed": null,
+          "required": true
+        },
+        "effort": {
+          "type": "enum",
+          "explanation": "Pin this candidate's effort instead of the task's usual effort. Light and deep use your class preferences; named efforts require exact harness support. A lower pin requires captain fallback. Example: low pins Sol to low effort.",
+          "allowed": [
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+            "light",
+            "deep"
+          ],
+          "required": false
+        },
+        "captain_fallback": {
+          "type": "bool",
+          "explanation": "Record the captain's permission to use this candidate below the task's reasoning level. The receipt and Crew card show the model and effort as captain fallback. Example: true permits the research Sol fallback at low effort.",
+          "allowed": null,
+          "required": false
+        }
+      }
+    },
+    {
+      "key": "econ.profiles.worker",
+      "section": "routing",
+      "label": "Worker model choices",
+      "explanation": "Try these candidates in order until a ready model supports the required effort. Example: try codex newest sol, then claude newest opus.",
+      "type": "ordered-list",
+      "default": [
+        {
+          "harness": "codex",
+          "model": "newest sol"
+        },
+        {
+          "harness": "claude",
+          "model": "newest opus"
+        }
+      ],
+      "allowed": null,
+      "range": null,
+      "file": "econ.toml",
+      "toml_path": [
+        "profiles",
+        "worker"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": false,
+      "fields": {
+        "harness": {
+          "type": "enum",
+          "explanation": "Choose the harness that runs this candidate. Example: codex.",
+          "allowed": [
+            "codex",
+            "claude"
+          ],
+          "required": true
+        },
+        "model": {
+          "type": "string",
+          "explanation": "Use an exact catalog model ID or a newest-family selector. Example: newest sonnet.",
+          "allowed": null,
+          "required": true
+        },
+        "effort": {
+          "type": "enum",
+          "explanation": "Pin this candidate's effort instead of the task's usual effort. Light and deep use your class preferences; named efforts require exact harness support. A lower pin requires captain fallback. Example: low pins Sol to low effort.",
+          "allowed": [
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+            "light",
+            "deep"
+          ],
+          "required": false
+        },
+        "captain_fallback": {
+          "type": "bool",
+          "explanation": "Record the captain's permission to use this candidate below the task's reasoning level. The receipt and Crew card show the model and effort as captain fallback. Example: true permits the research Sol fallback at low effort.",
+          "allowed": null,
+          "required": false
+        }
+      }
+    },
+    {
+      "key": "econ.profiles.design",
+      "section": "routing",
+      "label": "Design model choices",
+      "explanation": "Try these candidates in order until a ready model supports the required effort. Example: try codex newest sol, then claude newest opus.",
+      "type": "ordered-list",
+      "default": [
+        {
+          "harness": "claude",
+          "model": "newest opus"
+        }
+      ],
+      "allowed": null,
+      "range": null,
+      "file": "econ.toml",
+      "toml_path": [
+        "profiles",
+        "design"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": false,
+      "fields": {
+        "harness": {
+          "type": "enum",
+          "explanation": "Choose the harness that runs this candidate. Example: codex.",
+          "allowed": [
+            "codex",
+            "claude"
+          ],
+          "required": true
+        },
+        "model": {
+          "type": "string",
+          "explanation": "Use an exact catalog model ID or a newest-family selector. Example: newest sonnet.",
+          "allowed": null,
+          "required": true
+        },
+        "effort": {
+          "type": "enum",
+          "explanation": "Pin this candidate's effort instead of the task's usual effort. Light and deep use your class preferences; named efforts require exact harness support. A lower pin requires captain fallback. Example: low pins Sol to low effort.",
+          "allowed": [
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+            "light",
+            "deep"
+          ],
+          "required": false
+        },
+        "captain_fallback": {
+          "type": "bool",
+          "explanation": "Record the captain's permission to use this candidate below the task's reasoning level. The receipt and Crew card show the model and effort as captain fallback. Example: true permits the research Sol fallback at low effort.",
+          "allowed": null,
+          "required": false
+        }
+      }
+    },
+    {
+      "key": "econ.profiles.research",
+      "section": "routing",
+      "label": "Research model choices",
+      "explanation": "Try these research candidates in order. Unpinned candidates use the task's reasoning level; a lower pin needs captain fallback. Example: a candidate pinned to low records the captain's fallback choice.",
+      "type": "ordered-list",
+      "default": [
+        {
+          "harness": "claude",
+          "model": "newest sonnet"
+        },
+        {
+          "harness": "codex",
+          "model": "newest sol",
+          "effort": "low",
+          "captain_fallback": true
+        }
+      ],
+      "allowed": null,
+      "range": null,
+      "file": "econ.toml",
+      "toml_path": [
+        "profiles",
+        "research"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": true,
+      "fields": {
+        "harness": {
+          "type": "enum",
+          "explanation": "Choose the harness that runs this candidate. Example: codex.",
+          "allowed": [
+            "codex",
+            "claude"
+          ],
+          "required": true
+        },
+        "model": {
+          "type": "string",
+          "explanation": "Use an exact catalog model ID or a newest-family selector. Example: newest sonnet.",
+          "allowed": null,
+          "required": true
+        },
+        "effort": {
+          "type": "enum",
+          "explanation": "Pin this candidate's effort instead of the task's usual effort. Light and deep use your class preferences; named efforts require exact harness support. A lower pin requires captain fallback. Example: low pins Sol to low effort.",
+          "allowed": [
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+            "light",
+            "deep"
+          ],
+          "required": false
+        },
+        "captain_fallback": {
+          "type": "bool",
+          "explanation": "Record the captain's permission to use this candidate below the task's reasoning level. The receipt and Crew card show the model and effort as captain fallback. Example: true permits the research Sol fallback at low effort.",
+          "allowed": null,
+          "required": false
+        }
+      }
+    },
+    {
+      "key": "econ.reasoning.light",
+      "section": "routing",
+      "label": "Light reasoning effort",
+      "explanation": "Set preferred effort; a harness may move up to its nearest supported effort. Example: high requests high or stronger reasoning.",
+      "type": "enum",
+      "default": "low",
+      "allowed": [
+        "none",
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "range": null,
+      "file": "econ.toml",
+      "toml_path": [
+        "reasoning",
+        "light"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": true,
+      "fields": null
+    },
+    {
+      "key": "econ.reasoning.deep",
+      "section": "routing",
+      "label": "Deep reasoning effort",
+      "explanation": "Set preferred effort; a harness may move up to its nearest supported effort. Example: high requests high or stronger reasoning.",
+      "type": "enum",
+      "default": "high",
+      "allowed": [
+        "none",
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "range": null,
+      "file": "econ.toml",
+      "toml_path": [
+        "reasoning",
+        "deep"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": true,
+      "fields": null
+    },
+    {
+      "key": "econ.reasoning.max",
+      "section": "routing",
+      "label": "Max reasoning effort",
+      "explanation": "Set preferred effort; a harness may move up to its nearest supported effort. Example: high requests high or stronger reasoning.",
+      "type": "enum",
+      "default": "max",
+      "allowed": [
+        "none",
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "range": null,
+      "file": "econ.toml",
+      "toml_path": [
+        "reasoning",
+        "max"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": true,
+      "fields": null
+    },
+    {
+      "key": "sources.handbook.id",
+      "section": "sources",
+      "label": "Source name",
+      "explanation": "Name this context source so tasks can refer to it. Example: handbook.",
+      "type": "string",
+      "default": "handbook",
+      "allowed": null,
+      "range": null,
+      "file": "sources.toml",
+      "toml_path": [
+        "source",
+        0,
+        "id"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": false,
+      "fields": null
+    },
+    {
+      "key": "sources.handbook.kind",
+      "section": "sources",
+      "label": "Source kind",
+      "explanation": "Choose a local folder, Git repository or UNVRS memory. Example: path reads a local folder.",
+      "type": "enum",
+      "default": "path",
+      "allowed": [
+        "path",
+        "git",
+        "memory"
+      ],
+      "range": null,
+      "file": "sources.toml",
+      "toml_path": [
+        "source",
+        0,
+        "kind"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": true,
+      "fields": null
+    },
+    {
+      "key": "sources.handbook.uri",
+      "section": "sources",
+      "label": "Source location",
+      "explanation": "Point to the folder or Git URL to read. Example: /Users/me/handbook.",
+      "type": "path",
+      "default": "/Users/me/handbook",
+      "allowed": null,
+      "range": null,
+      "file": "sources.toml",
+      "toml_path": [
+        "source",
+        0,
+        "uri"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": true,
+      "fields": null
+    },
+    {
+      "key": "sources.handbook.purpose",
+      "section": "sources",
+      "label": "What this source contains",
+      "explanation": "Describe when this source is useful. Example: team operating instructions.",
+      "type": "string",
+      "default": "Team operating instructions",
+      "allowed": null,
+      "range": null,
+      "file": "sources.toml",
+      "toml_path": [
+        "source",
+        0,
+        "purpose"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": false,
+      "fields": null
+    },
+    {
+      "key": "sources.handbook.exclude",
+      "section": "sources",
+      "label": "Excluded paths",
+      "explanation": "Keep matching paths out of context results. Example: private/** hides files in private.",
+      "type": "list",
+      "default": [
+        "private/**"
+      ],
+      "allowed": null,
+      "range": null,
+      "file": "sources.toml",
+      "toml_path": [
+        "source",
+        0,
+        "exclude"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": true,
+      "fields": null
+    },
+    {
+      "key": "sources.handbook.sensitivity",
+      "section": "sources",
+      "label": "Source privacy",
+      "explanation": "Set the source disclosure level. Example: private treats its contents as private context.",
+      "type": "enum",
+      "default": "private",
+      "allowed": [
+        "public",
+        "private",
+        "secret"
+      ],
+      "range": null,
+      "file": "sources.toml",
+      "toml_path": [
+        "source",
+        0,
+        "sensitivity"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": true,
+      "fields": null
+    },
+    {
+      "key": "sources.handbook.branch",
+      "section": "sources",
+      "label": "Git branch",
+      "explanation": "Select a branch for a Git source; null uses its default branch. Example: main.",
+      "type": "string",
+      "default": null,
+      "allowed": null,
+      "range": null,
+      "file": "sources.toml",
+      "toml_path": [
+        "source",
+        0,
+        "branch"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": false,
+      "fields": null
+    },
+    {
+      "key": "sources.handbook.refresh",
+      "section": "sources",
+      "label": "Git refresh interval",
+      "explanation": "Set how often a Git source pulls updates; null uses one hour. Example: 30m refreshes every half hour.",
+      "type": "string",
+      "default": null,
+      "allowed": null,
+      "range": null,
+      "file": "sources.toml",
+      "toml_path": [
+        "source",
+        0,
+        "refresh"
+      ],
+      "apply": "live",
+      "editable": true,
+      "sensitive": false,
+      "fields": null
+    },
+    {
+      "key": "projects.unvrs-rs.purpose",
+      "section": "projects",
+      "label": "Project purpose",
+      "explanation": "Describe the work this project owns. Example: maintain the UNVRS kernel.",
+      "type": "string",
+      "default": "Maintain the UNVRS kernel",
+      "allowed": null,
+      "range": null,
+      "file": "projects/unvrs-rs/project.toml",
+      "toml_path": [
+        "purpose"
+      ],
+      "apply": "live",
+      "editable": false,
+      "sensitive": false,
+      "fields": null
+    },
+    {
+      "key": "safety.watchdog_grace_ms",
+      "section": "safety",
+      "label": "Watchdog grace",
+      "explanation": "Allow this much extra time before a periodic job is overdue. Example: 120000 gives two minutes of grace.",
+      "type": "int",
+      "default": 120000,
+      "allowed": null,
+      "range": null,
+      "file": null,
+      "toml_path": null,
+      "apply": "restart",
+      "editable": false,
+      "sensitive": false,
+      "fields": null
+    },
+    {
+      "key": "kernel.quota_interval_secs",
+      "section": "kernel",
+      "label": "Quota polling interval",
+      "explanation": "Read harness quota on this cadence. Example: 600 checks every ten minutes.",
+      "type": "int",
+      "default": 600,
+      "allowed": null,
+      "range": null,
+      "file": null,
+      "toml_path": null,
+      "apply": "restart",
+      "editable": false,
+      "sensitive": false,
+      "fields": null
+    },
+    {
+      "key": "kernel.observatory_port",
+      "section": "kernel",
+      "label": "Observatory port",
+      "explanation": "Serve the Observatory on this local port; off or 0 disables it. Example: 7576 serves the normal address.",
+      "type": "string",
+      "default": "7576",
+      "allowed": null,
+      "range": null,
+      "file": null,
+      "toml_path": null,
+      "apply": "restart",
+      "editable": false,
+      "sensitive": false,
+      "fields": null
+    },
+    {
+      "key": "overrides.UNVRS_L3_CODEX_MODEL",
+      "section": "overrides",
+      "label": "Codex worker model override",
+      "explanation": "This model override bypasses your routing rules. Example: an exact model ID pins Codex workers to that model.",
+      "type": "string",
+      "default": null,
+      "allowed": null,
+      "range": null,
+      "file": null,
+      "toml_path": null,
+      "apply": "restart",
+      "editable": false,
+      "sensitive": false,
+      "fields": null
+    },
+    {
+      "key": "safety.settings_write_auth",
+      "section": "safety",
+      "label": "Settings write protection",
+      "explanation": "The browser must send a page CSRF value from the exact Observatory origin; the local authorization token stays server-side. Example: a request from another website is refused.",
+      "type": "string",
+      "default": "same-origin + page CSRF + server-side local token",
+      "allowed": null,
+      "range": null,
+      "file": null,
+      "toml_path": null,
+      "apply": "restart",
+      "editable": false,
+      "sensitive": false,
+      "fields": null
+    }
+  ],
+  "values": {
+    "econ.policy.default_role": "worker",
+    "econ.policy.default_reasoning": "deep",
+    "econ.policy.allow_max": false,
+    "econ.policy.rules": [
+      {
+        "ranks": [
+          1,
+          2
+        ],
+        "role": "judge",
+        "reason": "seat judgment"
+      },
+      {
+        "kinds": [
+          "design"
+        ],
+        "role": "design",
+        "reason": "design task"
+      },
+      {
+        "judgment": "high",
+        "role": "judge",
+        "reason": "high judgment"
+      },
+      {
+        "kinds": [
+          "decide"
+        ],
+        "role": "judge",
+        "reason": "decision task"
+      },
+      {
+        "kinds": [
+          "research"
+        ],
+        "role": "research",
+        "reason": "research task"
+      },
+      {
+        "thoroughness": "low",
+        "reasoning": "light",
+        "reason": "low thoroughness"
+      }
+    ],
+    "econ.catalog.refresh_minutes": 5,
+    "econ.catalog.max_age_minutes": 15,
+    "econ.profiles.judge": [
+      {
+        "harness": "claude",
+        "model": "newest opus"
+      },
+      {
+        "harness": "claude",
+        "model": "newest fable"
+      }
+    ],
+    "econ.profiles.worker": [
+      {
+        "harness": "codex",
+        "model": "newest sol"
+      },
+      {
+        "harness": "claude",
+        "model": "newest opus"
+      }
+    ],
+    "econ.profiles.design": [
+      {
+        "harness": "claude",
+        "model": "newest opus"
+      }
+    ],
+    "econ.reasoning.light": "low",
+    "econ.reasoning.deep": "high",
+    "econ.reasoning.max": "max",
+    "sources.handbook.id": "handbook",
+    "sources.handbook.kind": "path",
+    "sources.handbook.uri": "/Users/me/handbook",
+    "sources.handbook.purpose": "Team operating instructions",
+    "sources.handbook.exclude": [
+      "private/**"
+    ],
+    "sources.handbook.sensitivity": "private",
+    "sources.handbook.branch": null,
+    "sources.handbook.refresh": null,
+    "projects.unvrs-rs.purpose": "Maintain the UNVRS kernel",
+    "safety.watchdog_grace_ms": 120000,
+    "kernel.quota_interval_secs": 600,
+    "kernel.observatory_port": "7576",
+    "overrides.UNVRS_L3_CODEX_MODEL": "example-model-id",
+    "safety.settings_write_auth": "same-origin + page CSRF + server-side local token",
+    "econ.profiles.research": [
+      {
+        "harness": "claude",
+        "model": "newest sonnet"
+      },
+      {
+        "harness": "codex",
+        "model": "newest sol",
+        "effort": "low",
+        "captain_fallback": true
+      }
+    ]
+  },
+  "effective_source": {
+    "econ.policy.default_role": "default",
+    "econ.policy.default_reasoning": "default",
+    "econ.policy.allow_max": "default",
+    "econ.policy.rules": "default",
+    "econ.catalog.refresh_minutes": "default",
+    "econ.catalog.max_age_minutes": "default",
+    "econ.profiles.judge": "default",
+    "econ.profiles.worker": "default",
+    "econ.profiles.design": "default",
+    "econ.reasoning.light": "default",
+    "econ.reasoning.deep": "default",
+    "econ.reasoning.max": "default",
+    "sources.handbook.id": "file",
+    "sources.handbook.kind": "file",
+    "sources.handbook.uri": "file",
+    "sources.handbook.purpose": "file",
+    "sources.handbook.exclude": "file",
+    "sources.handbook.sensitivity": "file",
+    "sources.handbook.branch": "file",
+    "sources.handbook.refresh": "file",
+    "projects.unvrs-rs.purpose": "file",
+    "safety.watchdog_grace_ms": "default",
+    "kernel.quota_interval_secs": "default",
+    "kernel.observatory_port": "default",
+    "overrides.UNVRS_L3_CODEX_MODEL": "env",
+    "safety.settings_write_auth": "default",
+    "econ.profiles.research": "file"
+  },
+  "live_catalog": {
+    "codex": {
+      "observed_at": 1790890000000,
+      "signed_in": true,
+      "models": [
+        {
+          "id": "example-model-id",
+          "efforts": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "is_default": true,
+          "quota_available": true,
+          "quota_error": null
+        }
+      ],
+      "quota_available": true,
+      "quota_observed_at": 1790890000000,
+      "error": null,
+      "source": "fixture",
+      "quota": {}
+    }
+  },
+  "history": [
+    {
+      "change_id": "settings-1790890000000-1",
+      "key": "econ.reasoning.deep",
+      "before": "medium",
+      "after": "high",
+      "by": "captain",
+      "at": 1790890000000,
+      "reverts": null
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "id": 2,
+  "result": {
+    "account": {
+      "email": "redacted",
+      "planType": "prolite",
+      "type": "chatgpt"
+    },
+    "requiresOpenaiAuth": true
+  }
+}

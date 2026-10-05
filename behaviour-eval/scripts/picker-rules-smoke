@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+"""A4 · rules picker lands in the expected band on every fixture; captain-channel policy holds."""
+from smokelib import Smoke
+
+s = Smoke("picker-rules-smoke")
+catalog = {f"{e['pool']}/{e['id']}": e for e in s.catalog()}
+interactive = {key for key, e in catalog.items() if e["needs_captain"]}
+
+# fixture → (seat, fragments one selected id must contain, or None for "expect empty plan")
+BANDS = [
+    ("coding-tdd.md", "l2", ["tdd", "test"]),
+    ("bugfix.md", "l2", ["bug", "debug", "diagnos", "triage"]),
+    ("no-skill-needed.md", "l2", None),
+    ("interactive-grill.md", "l1", ["grill"]),
+]
+for index, (fixture, seat, band) in enumerate(BANDS):
+    code, result = s.boot(fixture, s.tmp / f"ws{index}", "--picker", "rules", "--seat", seat, "--plan-only")
+    pick = result.get("pick", {})
+    selected = pick.get("selected", [])
+    s.check(f"{fixture} planned", code == 0 and result.get("state") == "planned", str(result)[:300])
+    s.check(f"{fixture} backend rules", pick.get("backend_used") == "rules")
+    s.check(f"{fixture} selected ⊆ catalog", all(key in catalog for key in selected), str(selected))
+    s.check(f"{fixture} cap ≤3", len(selected) <= 3, str(selected))
+    if band is None:
+        s.check(f"{fixture} empty plan", selected == [], str(selected))
+    else:
+        hit = any(fragment in key.split("/", 1)[1] for key in selected for fragment in band)
+        s.check(f"{fixture} band {band}", hit, str(selected))
+    s.note(f"{fixture} [{seat}] → {selected}")
+
+# Interactive policy: the grill fixture on seats without a captain channel never carries needs_captain skills.
+for seat, channel in [("l2", False), ("l3", False), ("l2-focused", True)]:
+    code, result = s.boot("interactive-grill.md", s.tmp / f"policy-{seat}", "--picker", "rules", "--seat", seat, "--plan-only")
+    pick = result.get("pick", {})
+    selected = set(pick.get("selected", []))
+    s.check(f"policy {seat} captain_channel={channel}", pick.get("captain_channel") is channel)
+    if channel:
+        s.check(f"policy {seat} may carry interactive", bool(selected & interactive), str(selected))
+    else:
+        s.check(f"policy {seat} no interactive skill", not (selected & interactive), str(selected))
+        s.check(f"policy {seat} stripped recorded", len(pick.get("stripped", [])) == len(interactive), str(pick.get("stripped")))
+s.finish()

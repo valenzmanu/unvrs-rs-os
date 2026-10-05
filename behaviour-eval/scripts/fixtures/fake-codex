@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+"""Fixture `codex exec --json` for driven L3 seats (same stepping as fake-claude)."""
+import json, os, sys, time, uuid
+from pathlib import Path
+args = sys.argv[1:]
+session = args[args.index("resume") + 1] if "resume" in args else str(uuid.uuid4())
+prompt = sys.stdin.read()
+state_dir = Path(os.environ.get("FAKE_CPU_DIR", "/tmp")); state_dir.mkdir(parents=True, exist_ok=True)
+sf = state_dir / f"{session}.json"
+st = json.loads(sf.read_text()) if sf.exists() else {"step": 0, "prompts": []}
+st["prompts"].append(prompt)
+steps = os.environ.get("FAKE_STEPS", "a,b,c").split(",")
+if st["step"] == 0 and "HANDED OFF" in prompt:
+    st["step"] = sum(1 for s in steps if f"item {s} done" in prompt)
+time.sleep(float(os.environ.get("FAKE_DELAY", "0.3")))
+i = st["step"]
+cmds = []
+if i < len(steps):
+    cmds = [f"process {steps[i]}"]
+    st["step"] += 1
+done = [f"- [d{k}] item {steps[k]} done" for k in range(st["step"])]
+finished = st["step"] >= len(steps)
+cur = steps[i] if i < len(steps) else "summary"
+nxt = "item " + steps[st["step"]] if not finished else "finish"
+lines = [f"did item {cur}", "UNVRS-PROGRESS", f"now: item {cur}", f"next: {nxt}", "open:"]
+lines += [] if finished else [f"- [o1] items left: {','.join(steps[st['step']:])}"]
+lines += ["done:"] + done + (["- [o1] items left: none"] if finished else []) + ["END-PROGRESS"]
+text = "\n".join(lines) + "\n"
+if i >= len(steps):
+    text += "UNVRS-RESULT: processed " + ",".join(steps)
+sf.write_text(json.dumps(st))
+print(json.dumps({"type": "thread.started", "thread_id": session}), flush=True)
+for c in cmds:
+    print(json.dumps({"type": "item.completed", "item": {"type": "command_execution", "command": c}}), flush=True)
+print(json.dumps({"type": "item.completed", "item": {"type": "agent_message", "text": text}}), flush=True)
+print(json.dumps({"type": "turn.completed"}), flush=True)

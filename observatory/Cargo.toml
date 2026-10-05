@@ -1,0 +1,29 @@
+[package]
+name = "observatory"
+description = "The UNVRS Observatory: a localhost operator view of the kernel (Dioxus liveview, Cosmos hero in wasm)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish.workspace = true
+
+build = "build.rs"
+
+[dependencies]
+anyhow.workspace = true
+libc.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+dioxus = { version = "0.7.10", default-features = false, features = ["macro", "html", "signals", "hooks"] }
+dioxus-liveview = { version = "0.7.10", default-features = false, features = ["axum", "multi-thread"] }
+dioxus-ssr = "0.7.10"
+axum = { version = "0.8.4", features = ["ws"] }
+tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "macros", "sync"] }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+uke = { path = "../uke" }

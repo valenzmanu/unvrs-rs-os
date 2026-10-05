@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+"""A5 · Jev picker: structure with key (Noul + Choice, selected ⊆ catalog, cap); rules fallback without key.
+
+Asserts structure only — never whether Jev's pick is *good* (that is captain judgment, EVAL B3)."""
+import sys
+from smokelib import Smoke, has_key
+
+s = Smoke("picker-jev-smoke")
+catalog = {f"{e['pool']}/{e['id']}": e for e in s.catalog()}
+interactive = {key for key, e in catalog.items() if e["needs_captain"]}
+
+# Fallback: key unset (HOME-less .env lookup is defeated by pointing the URL nowhere AND blanking the key).
+blank = {"TYPESAFE_API_KEY": " "}
+code, result = s.boot("coding-tdd.md", s.tmp / "nokey", "--picker", "jev", "--plan-only", env=blank)
+pick = result.get("pick", {})
+s.check("no key → still plans", code == 0 and result.get("state") == "planned", str(result)[:300])
+s.check("no key → backend_used rules", pick.get("backend_requested") == "jev" and pick.get("backend_used") == "rules")
+s.check("no key → fallback reason names the key", "TYPESAFE_API_KEY" in (pick.get("fallback") or ""), str(pick.get("fallback")))
+s.check("no key → noul/confidence absent", pick.get("noul") is None and pick.get("confidence") is None)
+
+# Fallback: transport error (unroutable endpoint) with a key present.
+down = {"TYPESAFE_API_KEY": "smoke-invalid-key", "TYPESAFE_API_URL": "http://127.0.0.1:9/v1/systemone"}
+code, result = s.boot("bugfix.md", s.tmp / "down", "--picker", "jev", "--plan-only", env=down)
+pick = result.get("pick", {})
+s.check("transport error → rules fallback", code == 0 and pick.get("backend_used") == "rules" and pick.get("fallback"), str(pick.get("fallback")))
+
+if not has_key():
+    s.check("TYPESAFE_API_KEY available for live Jev rows", False, "set it in the environment or repo-root .env")
+    s.finish()
+
+for index, (fixture, seat) in enumerate([("coding-tdd.md", "l2"), ("bugfix.md", "l2"), ("no-skill-needed.md", "l2"), ("interactive-grill.md", "l1"), ("interactive-grill.md", "l3")]):
+    label = f"jev {fixture} [{seat}]"
+    code, result = s.boot(fixture, s.tmp / f"jev{index}", "--picker", "jev", "--seat", seat, "--plan-only")
+    pick = result.get("pick", {})
+    selected = pick.get("selected", [])
+    s.check(f"{label} planned via jev", code == 0 and pick.get("backend_used") == "jev" and pick.get("fallback") is None, str(result)[:300])
+    noul, confidence = pick.get("noul"), pick.get("confidence")
+    s.check(f"{label} noul in [0,1]", isinstance(noul, (int, float)) and 0 <= noul <= 1, str(noul))
+    s.check(f"{label} confidence in [0,1]", isinstance(confidence, (int, float)) and 0 <= confidence <= 1, str(confidence))
+    s.check(f"{label} selected ⊆ catalog, cap ≤3", len(selected) <= 3 and all(key in catalog for key in selected), str(selected))
+    scored = {name for name, _ in pick.get("scores", [])}
+    s.check(f"{label} scores are catalog ids", all(any(key.endswith("/" + name) for key in catalog) for name in scored), str(scored))
+    if seat == "l3":
+        s.check(f"{label} no interactive skill", not (set(selected) & interactive), str(selected))
+    events = [e for e in s.events(s.tmp / f"jev{index}") if e["kind"] == "boot.pick"]
+    s.check(f"{label} Obs boot.pick logged", len(events) == 1 and events[0].get("noul") == noul)
+    s.note(f"{label} noul={noul} confidence={confidence} → {selected} ({pick.get('note')})")
+s.finish()

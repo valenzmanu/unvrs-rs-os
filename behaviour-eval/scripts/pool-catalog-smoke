@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# M3 smoke: mattpocock catalogue (network) + offline local path pool.
+# Run from the repo root. Journal: behaviour-eval/journals/pool-catalog-smoke.log
+set -euo pipefail
+
+JOURNAL=behaviour-eval/journals/pool-catalog-smoke.log
+PINNED=$(sed -n 's/^ref = "\(.*\)"$/\1/p' behaviour-eval/fixtures/skill-pools.toml | head -1)
+CACHE=${UNVRS_POOL_CACHE:-$PWD/behaviour-eval/.unvrs/pools}
+export UNVRS_POOL_CACHE="$CACHE"
+fails=0
+
+mkdir -p "$(dirname "$JOURNAL")" "$CACHE"
+: >"$JOURNAL"
+log() { printf '%s\n' "$*" | tee -a "$JOURNAL"; }
+check() { # check <name> <ok:0|1> [detail]
+  if [ "$2" = 0 ]; then log "PASS $1 ${3-}"; else log "FAIL $1 ${3-}"; fails=$((fails + 1)); fi
+}
+
+log "pinned_ref: $PINNED"
+log "cache: $CACHE"
+
+cargo build -q -p unvrs
+BIN=${UNVRS_BIN:-target/debug/unvrs}
+[ -x "$BIN" ] || { log "FAIL binary_present $BIN"; exit 1; }
+
+"$BIN" pool list --config behaviour-eval/fixtures/skill-pools.toml --json >"$CACHE/upstream.json"
+"$BIN" pool list --config behaviour-eval/fixtures/skill-pools-local.toml --json >"$CACHE/local.json"
+
+assert() { # assert <name> <python-expression over `s` (upstream) and `l` (local)>
+  local name=$1 expr=$2 out
+  if out=$(python3 - "$expr" <<'PY'
+import json, sys
+s = json.load(open(__import__("os").environ["UNVRS_POOL_CACHE"] + "/upstream.json"))
+l = json.load(open(__import__("os").environ["UNVRS_POOL_CACHE"] + "/local.json"))
+ids = [e["id"] for e in s]
+captain = [e["id"] for e in s if e["needs_captain"]]
+model = [e["id"] for e in s if not e["needs_captain"]]
+empty = [e["id"] for e in s if not e["id"].strip() or not e["summary"].strip()]
+local_ids = sorted(e["id"] for e in l)
+local_captain = [e["id"] for e in l if e["needs_captain"]]
+ok, detail = eval(sys.argv[1])
+print(("0" if ok else "1") + " " + str(detail))
+PY
+  ); then
+    check "$name" "${out%% *}" "${out#* }"
+  else
+    check "$name" 1 "python3 error"
+  fi
+}
+
+assert catalog_size          '(len(s) >= 10, f"skills={len(s)}")'
+assert ids_and_summaries     '(not empty, f"empty={empty}")'
+assert ids_unique            '(len(set(ids)) == len(ids), f"unique={len(set(ids))}/{len(ids)}")'
+assert needs_captain_true    '("grill-me" in captain, f"captain={len(captain)} first={captain[:3]}")'
+assert needs_captain_false   '(bool(model), f"model_invoked={len(model)}")'
+assert tdd_is_model_invoked  '(not [e for e in s if e["id"] == "tdd" and e["needs_captain"]], "tdd needs_captain=false")'
+assert local_pool_three      '(local_ids == ["bug-hunt", "grill-captain", "tdd-lite"], f"local={local_ids}")'
+assert local_pool_captain    '(local_captain == ["grill-captain"], f"local_captain={local_captain}")'
+
+CLONE=$("$BIN" pool resolve --config behaviour-eval/fixtures/skill-pools.toml --json |
+  python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["dir"])')
+HEAD=$(git -C "$CLONE" rev-parse HEAD)
+[ "$HEAD" = "$PINNED" ] && check clone_head_pinned 0 "$HEAD" || check clone_head_pinned 1 "$HEAD != $PINNED"
+
+log "failures: $fails"
+[ "$fails" -eq 0 ] || exit 1
+log "result: PASS"

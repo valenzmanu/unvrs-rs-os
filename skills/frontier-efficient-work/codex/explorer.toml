@@ -1,0 +1,8 @@
+name = "explorer"
+description = "Read-only scan. Return file paths, symbols, and a short summary."
+model = "gpt-5.6-luna"
+model_reasoning_effort = "low"
+sandbox_mode = "read-only"
+developer_instructions = """
+Search and read only. Do not edit. Return paths, symbols, and the fact that answers the question.
+"""

@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+# M6: install a two-skill nest plan for every ACP profile and prove each harness's native
+# layout on disk. Run from the repo root. No LLM calls; nothing is written outside temp dirs.
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$root"
+journal="$root/behaviour-eval/journals/agent-install-matrix-smoke.log"
+mkdir -p "$(dirname "$journal")"
+: >"$journal"
+log() { printf '%s\n' "$*" | tee -a "$journal"; }
+
+if [ -n "${UNVRS_BIN:-}" ]; then
+  bin="$UNVRS_BIN"
+else
+  log "build: cargo build -q -p unvrs"
+  cargo build -q -p unvrs
+  bin="$root/target/debug/unvrs"
+fi
+[ -x "$bin" ] || { log "FAIL binary missing: $bin"; exit 1; }
+log "binary: $bin"
+
+tmp="$(mktemp -d "${TMPDIR:-/tmp}/unvrs-install-matrix.XXXXXX")"
+trap 'rm -rf "$tmp"' EXIT
+
+# Skills: reuse the local pool fixtures once the pools slice lands, else generate two.
+fixtures="$root/behaviour-eval/fixtures/pools/local"
+skills=()
+if [ -d "$fixtures" ]; then
+  while IFS= read -r entry; do
+    skills+=("$(dirname "$entry")")
+  done < <(find "$fixtures" -maxdepth 2 -name SKILL.md | sort | head -2)
+fi
+if [ "${#skills[@]}" -lt 2 ]; then
+  skills=()
+  for id in nest-alpha nest-beta; do
+    dir="$tmp/pool/$id"
+    mkdir -p "$dir/references" "$dir/.git"
+    printf 'ref: refs/heads/main\n' >"$dir/.git/HEAD"
+    {
+      printf -- '---\n'
+      printf 'name: %s\n' "$id"
+      printf 'description: Fixture skill %s for the UNVRS install matrix.\n' "$id"
+      printf -- '---\n\n# %s\n\nDo the %s thing.\n' "$id" "$id"
+    } >"$dir/SKILL.md"
+    printf 'reference notes\n' >"$dir/references/notes.md"
+    skills+=("$dir")
+  done
+fi
+log "skills: ${skills[*]}"
+
+args=()
+for dir in "${skills[@]}"; do args+=(--skill-dir "$dir"); done
+
+rows=()
+fails=0
+row_ok=1
+check() { # check <label> <command...>
+  local label="$1"
+  shift
+  if "$@" >/dev/null 2>&1; then
+    log "  ok   $label"
+  else
+    log "  FAIL $label"
+    row_ok=0
+  fi
+}
+has() { grep -q "$1" "$2"; }
+
+for profile in pi codex claude cursor; do
+  case "$profile" in
+    pi) native=".pi/skills" ;;
+    codex) native=".agents/skills" ;;
+    claude) native=".claude/skills" ;;
+    cursor) native=".cursor/skills" ;;
+  esac
+  ws="$tmp/ws-$profile"
+  mkdir -p "$ws"
+  row_ok=1
+  log "== $profile (native $native)"
+  check "install exits 0" "$bin" agent install --profile "$profile" "${args[@]}" \
+    --workspace "$ws" --json
+  "$bin" agent install --profile "$profile" "${args[@]}" --workspace "$ws" --json \
+    >"$tmp/$profile.json" 2>"$tmp/$profile.err" || sed 's/^/  | /' "$tmp/$profile.err" \
+    | tee -a "$journal" >/dev/null
+  check "report ok=true" has '"ok": true' "$tmp/$profile.json"
+  check "mode native" has '"mode": "native"' "$tmp/$profile.json"
+  check "activation names SKILL.md" has '"activation": ".*SKILL.md' "$tmp/$profile.json"
+  for dir in "${skills[@]}"; do
+    id="$(basename "$dir")"
+    check "native entry non-empty: $native/$id/SKILL.md" test -s "$ws/$native/$id/SKILL.md"
+    if [ -f "$dir/references/notes.md" ]; then
+      check "resources copied: $id" test -f "$ws/$native/$id/references/notes.md"
+    fi
+    check "no .git copied: $id" test ! -e "$ws/$native/$id/.git"
+  done
+  check "manifest written" test -s "$ws/.unvrs/installed-skills.json"
+  check "manifest records profile" has "\"$profile\"" "$ws/.unvrs/installed-skills.json"
+
+  # Idempotency: a stale file inside a skill must not survive; the report must not drift.
+  first_id="$(basename "${skills[0]}")"
+  printf 'leftover\n' >"$ws/$native/$first_id/stale.md"
+  check "second install exits 0" "$bin" agent install --profile "$profile" "${args[@]}" \
+    --workspace "$ws" --json
+  "$bin" agent install --profile "$profile" "${args[@]}" --workspace "$ws" --json \
+    >"$tmp/$profile.2.json" 2>&1 || true
+  check "reinstall cleans stale file" test ! -e "$ws/$native/$first_id/stale.md"
+  check "second report identical" diff -q "$tmp/$profile.json" "$tmp/$profile.2.json"
+
+  # INFO only: does the harness itself see the skill? Never fails; never calls a model.
+  if [ "$profile" = "codex" ] && command -v codex >/dev/null 2>&1; then
+    if (cd "$ws" && codex debug prompt-input 2>/dev/null) | grep -q "$first_id"; then
+      log "  INFO codex debug prompt-input lists $first_id"
+    else
+      log "  INFO codex debug prompt-input did not list $first_id (auth, offline or root change)"
+    fi
+  fi
+
+  if [ "$row_ok" -eq 1 ]; then
+    rows+=("$profile|PASS|$native")
+  else
+    rows+=("$profile|FAIL|$native")
+    fails=$((fails + 1))
+  fi
+done
+
+# Negative row: an unknown profile must fail nonzero and write nothing.
+log "== bogus (negative)"
+ws="$tmp/ws-bogus"
+mkdir -p "$ws"
+if "$bin" agent install --profile bogus "${args[@]}" --workspace "$ws" >"$tmp/bogus.out" 2>&1; then
+  log "  FAIL unknown profile exited 0"
+  rows+=("bogus|FAIL|should-refuse")
+  fails=$((fails + 1))
+elif [ -e "$ws/.unvrs/installed-skills.json" ]; then
+  log "  FAIL unknown profile wrote a manifest"
+  rows+=("bogus|FAIL|wrote-manifest")
+  fails=$((fails + 1))
+else
+  log "  ok   unknown profile exits nonzero and writes nothing"
+  rows+=("bogus|PASS|refused")
+fi
+
+log ""
+log "$(printf '%-8s %-6s %s' profile result native)"
+for row in "${rows[@]}"; do
+  IFS='|' read -r name result native <<<"$row"
+  log "$(printf '%-8s %-6s %s' "$name" "$result" "$native")"
+done
+log "fails: $fails"
+log "journal: $journal"
+[ "$fails" -eq 0 ]

@@ -1,0 +1,471 @@
+/* UNVRS bridge (D24). One scene: the ship's window fills the screen (cosmos canvas; the
+   renderer paints the rounded frame and the hull around the glass), and the cockpit, one
+   translucent rounded panel with the helm, the section rail and the holographic deck, is
+   laid over it. The cockpit folds away so the captain can just watch the universe. Art
+   direction: deep-space navy, holographic cyan, warm amber for what needs the captain. */
+:root {
+  --void: #03060f; --hull: #070d1c; --glass: rgba(6, 13, 28, .84); --glass-hi: rgba(10, 22, 44, .9);
+  --holo: #6fe8f7; --holo-dim: rgba(111, 232, 247, .34); --holo-faint: rgba(111, 232, 247, .12);
+  --amber: #ffbf5e; --rose: #ff86b4; --green: #86efb4; --violet: #b9a4ff;
+  --text: #e8f2fb; --soft: #a9bdd6; --line: rgba(140, 170, 210, .2);
+  --ui: "Avenir Next", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+  --mono: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --r: 14px; --gap: clamp(8px, 1.2vw, 16px);
+  --ease: cubic-bezier(.2, .8, .2, 1); --snap: cubic-bezier(.3, 1.4, .5, 1);
+  /* type scale: micro labels, meta, small copy, body, lead, section titles */
+  --t-micro: 10px; --t-label: 11px; --t-meta: 12px; --t-small: 13px; --t-body: 14px; --t-lead: 16px;
+  --t-title: 22px; --t-title-s: 19px;
+  /* the ship's window bezel: hull-dark ring, holo hairline, the corner brackets of a HUD */
+  --bezel: rgba(3, 6, 15, .7); --tick: rgba(111, 232, 247, .8);
+  /* the sky fills the screen edge to edge: no frame around the glass and no rounded
+     corners anywhere (cosmos.rs draws no window frame) */
+  --frame: 0px;
+  --win-r: 0px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--void); color: var(--text); font: var(--t-body)/1.5 var(--ui); }
+body.live { height: 100dvh; overflow: hidden; }
+a { color: var(--holo); text-decoration-color: var(--holo-dim); text-underline-offset: 3px; }
+a:hover { color: var(--text); }
+:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; border-radius: 0; }
+code, .cmd { font-family: var(--mono); }
+ul, ol, dl, dd, p { margin: 0; padding: 0; }
+ul, ol { list-style: none; }
+
+/* ---------------------------------------------------------------- the window layer */
+.window { position: fixed; inset: 0; z-index: 0; overflow: hidden;
+  background: radial-gradient(120% 90% at 42% 38%, #0e1c3e 0%, #060b1c 55%, var(--void) 100%); }
+#cosmos { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* no WebGL2 / no WASM / no JavaScript: the renderer's still frame in the same place, dimmed
+   as the sky and full strength inside the window opening where the galaxy would be framed */
+.window.nocosmos { background: #05081a url(/cosmos-poster.jpg) center / cover no-repeat; }
+.window.nocosmos::after { content: ""; position: absolute; inset: 0; background: rgba(3, 6, 15, .55); }
+.window.nocosmos ~ #main .viewport { background: #05081a url(/cosmos-poster.jpg) center / cover no-repeat; }
+body.static .hud { display: none; }
+.hud { position: absolute; z-index: 2; left: calc(var(--frame) + var(--gap) * 2 + 6px);
+  bottom: calc(var(--frame) + var(--gap) + 44px); pointer-events: none;
+  display: flex; flex-direction: column; gap: 6px; transition: opacity .45s var(--ease); }
+/* the cockpit folded away: nothing but the universe (and the toggle to bring it back) */
+body:has(.bridge[data-cockpit="hidden"]) .hud { opacity: 0; }
+.brand { display: flex; align-items: baseline; gap: 10px; width: max-content;
+  background: rgba(3, 6, 15, .82); padding: 6px 10px; border-radius: 0; }
+.logo { font: 700 18px/1 var(--ui); letter-spacing: .42em; color: var(--text);
+  text-shadow: 0 0 18px rgba(111, 232, 247, .55); }
+.sub { font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--holo); }
+.readout { display: flex; flex-direction: column; gap: 3px; }
+.readout .phase { font-size: 11px; letter-spacing: .18em; color: var(--text);
+  background: rgba(3, 6, 15, .82); padding: 2px 8px; border-left: 2px solid var(--holo); width: max-content; }
+.readout .stats { font: 11px var(--mono); color: var(--soft); background: rgba(3, 6, 15, .82);
+  padding: 1px 8px; width: max-content; font-variant-numeric: tabular-nums; }
+.readout .phase:empty, .readout .stats:empty { display: none; }
+
+/* ---------------------------------------------------------------- the scene */
+#main { position: relative; z-index: 1; }
+body.live #main { position: fixed; inset: 0; }
+.bridge.live { position: absolute; inset: 0; }
+.cockpit { display: grid; gap: var(--gap);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "helm" "nav" "deck" "foot"; }
+.helm { grid-area: helm; } .sight { grid-area: sight; min-height: 0; pointer-events: none; }
+.decknav { grid-area: nav; } .deck { grid-area: deck; } .foot { grid-area: foot; }
+.bridge.static { padding: var(--gap); }
+.bridge.static .viewport { height: 22vh; margin-bottom: var(--gap); }
+/* the window's glass, inset by the frame the renderer paints around it. A holo hairline,
+   a soft vignette so the sky sits behind glass, and the four corner brackets of a HUD
+   reticle. All of it is static paint on the UI layer above the canvas: no blur, nothing
+   animates. */
+.viewport { position: relative; min-height: 0; pointer-events: none;
+  border-radius: 0; border: 1px solid var(--holo-dim);
+  box-shadow: 0 0 0 1px var(--bezel), inset 0 0 0 1px rgba(3, 6, 15, .5), inset 0 0 64px 10px rgba(3, 6, 15, .45); }
+.bridge.live .viewport { position: absolute; inset: var(--frame); border-radius: 0; }
+/* with the cockpit away the glass takes taps and upward swipes (they bring it back) */
+.bridge.live[data-cockpit="hidden"] .viewport { pointer-events: auto; touch-action: none; }
+/* no WebGL2 / no WASM on the live page: the poster fills the glass, the hull is plain */
+.window.nocosmos ~ #main .bridge.live .viewport { box-shadow: 0 0 0 100vmax #070b16, 0 0 0 1px var(--bezel); }
+.viewport::before { content: ""; position: absolute; inset: 0; border-radius: 0; pointer-events: none;
+  /* glass: a reflection catching the top-left, a faint sheen along the top edge */
+  background:
+    linear-gradient(118deg, rgba(255, 255, 255, .06) 0%, rgba(255, 255, 255, .02) 22%, transparent 42%),
+    linear-gradient(rgba(255, 255, 255, .09), transparent) top / 100% 1px no-repeat; }
+.viewport::after { content: ""; position: absolute; inset: 6px; pointer-events: none; opacity: .9;
+  border-radius: 0;
+  background:
+    linear-gradient(var(--tick), var(--tick)) top left / 18px 2px,
+    linear-gradient(var(--tick), var(--tick)) top left / 2px 18px,
+    linear-gradient(var(--tick), var(--tick)) top right / 18px 2px,
+    linear-gradient(var(--tick), var(--tick)) top right / 2px 18px,
+    linear-gradient(var(--tick), var(--tick)) bottom left / 18px 2px,
+    linear-gradient(var(--tick), var(--tick)) bottom left / 2px 18px,
+    linear-gradient(var(--tick), var(--tick)) bottom right / 18px 2px,
+    linear-gradient(var(--tick), var(--tick)) bottom right / 2px 18px,
+    /* ruler ticks along the top and bottom edges, every 24px */
+    repeating-linear-gradient(90deg, var(--holo-dim) 0 1px, transparent 1px 24px) top 0 left 36px / calc(100% - 72px) 5px,
+    repeating-linear-gradient(90deg, var(--holo-dim) 0 1px, transparent 1px 24px) bottom 0 left 36px / calc(100% - 72px) 5px;
+  background-repeat: no-repeat; }
+.bridge.live .viewport::after { inset: calc(var(--win-r) * .3); }
+
+/* the cockpit: one translucent rounded panel inside the window, lightly tinted so the
+   universe reads through it; the instruments sit on it as denser glass. Folding it away
+   fades and settles it (opacity and transform only), then takes it out of the page. */
+.bridge.live .cockpit { position: absolute; inset: calc(var(--frame) + var(--gap)); padding: var(--gap);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  border-radius: 0;
+  background: rgba(4, 10, 24, .3); border: 1px solid rgba(111, 232, 247, .2);
+  box-shadow: 0 0 0 1px rgba(3, 6, 15, .35), inset 0 1px 0 rgba(255, 255, 255, .05), inset 0 0 90px rgba(111, 232, 247, .05);
+  transition: opacity .45s var(--ease), transform .45s var(--ease), visibility 0s linear 0s; }
+.bridge.live[data-cockpit="hidden"] .cockpit { opacity: 0; transform: translateY(14px) scale(.985);
+  visibility: hidden; pointer-events: none;
+  transition: opacity .45s var(--ease), transform .45s var(--ease), visibility 0s linear .45s; }
+/* restoring a remembered "hidden" on load: keep the cockpit out of sight until it is */
+body.cockpit-restoring .bridge.live .cockpit, body.cockpit-restoring .hud { visibility: hidden; transition: none; }
+
+/* the toggle: always on the glass, top right, the one control left when the cockpit is away */
+.cockpit-toggle { position: absolute; z-index: 3; top: calc(var(--frame) + var(--gap) + 10px);
+  right: calc(var(--frame) + var(--gap) + 10px); display: flex; align-items: center; gap: 8px;
+  height: 40px; padding: 0 10px 0 12px; border-radius: 0; border: 1px solid var(--holo-dim);
+  background: rgba(4, 9, 20, .88); color: var(--text); font: 600 var(--t-small) var(--ui); letter-spacing: .06em;
+  cursor: pointer; white-space: nowrap;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .4), inset 0 1px 0 rgba(255, 255, 255, .06);
+  transition: background .2s var(--ease), border-color .2s var(--ease), transform .2s var(--snap); }
+.cockpit-toggle:hover { background: rgba(10, 26, 48, .94); border-color: var(--holo); }
+.cockpit-toggle:active { transform: scale(.96); }
+/* a small window with its panel drawn in; the panel empties when the cockpit is away */
+.cockpit-toggle .eye { position: relative; flex: none; width: 18px; height: 14px; border-radius: 0;
+  border: 2px solid var(--holo); }
+.cockpit-toggle .eye::after { content: ""; position: absolute; inset: 2px; border-radius: 0; background: var(--holo); opacity: .75; }
+.cockpit-toggle.off .eye::after { opacity: 0; }
+.cockpit-toggle .tkey { font: 600 var(--t-label) var(--mono); color: var(--soft); padding: 0 5px; border-radius: 0;
+  border: 1px solid var(--line); background: rgba(3, 6, 15, .6); }
+.sr-only, .cockpit-toggle .tlabel.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* the helm leaves room for the toggle at its right end */
+.bridge.live .helm { padding-right: 190px; touch-action: none; }
+.grip { display: none; }
+
+/* holographic glass: shared by the helm, the rail and the deck */
+.helm, .decknav, .deck { position: relative; background: var(--glass);
+  border: 1px solid var(--holo-dim); border-radius: 0;
+  backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: 0 0 0 1px rgba(3, 6, 15, .6), 0 18px 60px rgba(0, 0, 0, .45),
+    inset 0 1px 0 rgba(255, 255, 255, .06), inset 0 0 40px var(--holo-faint); }
+.helm::before, .deck::before { content: ""; position: absolute; inset: -1px; border-radius: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--holo), var(--holo)) top left / 22px 2px,
+    linear-gradient(var(--holo), var(--holo)) top left / 2px 22px,
+    linear-gradient(var(--holo), var(--holo)) bottom right / 22px 2px,
+    linear-gradient(var(--holo), var(--holo)) bottom right / 2px 22px;
+  background-repeat: no-repeat; opacity: .9; }
+/* the deck is a projection: an emitter line glows along its bottom edge */
+.deck::before { background:
+    linear-gradient(var(--holo), var(--holo)) top left / 22px 2px,
+    linear-gradient(var(--holo), var(--holo)) top left / 2px 22px,
+    linear-gradient(var(--holo), var(--holo)) bottom right / 22px 2px,
+    linear-gradient(var(--holo), var(--holo)) bottom right / 2px 22px,
+    linear-gradient(90deg, transparent, var(--holo) 30%, var(--holo) 70%, transparent) bottom center / 42% 1px,
+    radial-gradient(60% 18px at 50% 100%, rgba(111, 232, 247, .22), transparent) bottom center / 100% 18px;
+  background-repeat: no-repeat; }
+.deck::after { content: ""; position: absolute; inset: 0; border-radius: 0; pointer-events: none;
+  background:
+    linear-gradient(rgba(255, 255, 255, .05), transparent 18%),
+    repeating-linear-gradient(0deg, rgba(111, 232, 247, .035) 0 1px, transparent 1px 4px); }
+
+/* ---------------------------------------------------------------- helm */
+.helm { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 8px 16px; padding: 10px 14px; }
+.kernel { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ktext { display: flex; flex-direction: column; min-width: 0; }
+.kstate { font-weight: 600; letter-spacing: .12em; text-transform: uppercase; font-size: 12px; color: var(--green); }
+.helm.off .kstate { color: var(--rose); }
+.kmeta { font: 12px var(--mono); color: var(--soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kmeta.deploy { color: var(--green); }
+.kmeta.deploy.busy { color: var(--amber); }
+.kmeta.deploy.warn { color: var(--amber); }
+.kmeta.deploy.bad { color: var(--rose); }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--green);
+  box-shadow: 0 0 12px var(--green); animation: breathe 2.4s ease-in-out infinite; }
+.helm.off .dot { background: var(--rose); box-shadow: 0 0 12px var(--rose); }
+@keyframes breathe { 50% { opacity: .45; } }
+.gauges { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; flex: 1 1 300px; max-width: 520px; }
+.gauge { text-align: center; padding: 5px 4px; border-radius: 0; border: 1px solid var(--line);
+  background: rgba(3, 6, 15, .55); min-width: 0; }
+.gauge .n { display: block; font: 600 18px/1.1 var(--mono); color: var(--text); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gauge .l { display: block; font-size: var(--t-micro); letter-spacing: .16em; text-transform: uppercase; color: var(--soft); }
+.g-calls.hot { border-color: var(--amber); box-shadow: 0 0 18px rgba(255, 191, 94, .3); }
+.g-calls.hot .n { color: var(--amber); }
+.g-seats .n { color: var(--violet); } .g-work .n { color: var(--holo); }
+.g-work.warn { border-color: var(--rose); }
+.g-quota.q-ok .n { color: var(--green); } .g-quota.q-mid .n { color: var(--amber); } .g-quota.q-low .n { color: var(--rose); }
+
+/* ---------------------------------------------------------------- section rail */
+.decknav { padding: 6px; }
+.decknav ol { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.decknav ol::-webkit-scrollbar { display: none; }
+.tab { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 6px 10px;
+  border: 1px solid transparent; border-radius: 0; background: transparent; color: var(--soft);
+  font: 600 var(--t-small) var(--ui); letter-spacing: .04em; cursor: pointer; white-space: nowrap; text-decoration: none;
+  transition: background .2s var(--ease), color .2s var(--ease), border-color .2s var(--ease), transform .18s var(--ease); }
+.tab:hover { color: var(--text); background: rgba(111, 232, 247, .08); border-color: var(--holo-faint); }
+.tab:not(.on):hover .tno { color: var(--holo); opacity: 1; }
+.tab:active { transform: scale(.97); }
+.tab.on { color: var(--void); background-color: var(--holo); background-image: linear-gradient(90deg, var(--holo), #a9f3fb);
+  border-color: var(--holo); box-shadow: 0 0 22px rgba(111, 232, 247, .35), inset 0 1px 0 rgba(255, 255, 255, .45); }
+.tno { font: var(--t-label) var(--mono); opacity: .8; transition: color .2s var(--ease), opacity .2s var(--ease); }
+.tname { flex: 1; text-align: left; }
+.tbadge { font: 600 var(--t-label) var(--mono); padding: 1px 7px; border-radius: 0;
+  background: rgba(3, 6, 15, .6); color: var(--soft); border: 1px solid var(--line); }
+.tbadge.hot { color: var(--void); background: var(--amber); border-color: var(--amber); }
+.tab.on .tbadge { background: rgba(3, 6, 15, .75); color: var(--text); }
+.tab.on .tbadge.hot { background: var(--amber); color: var(--void); }
+
+/* ---------------------------------------------------------------- the deck */
+.deck { display: flex; flex-direction: column; min-height: 0; overflow: hidden; touch-action: pan-y; }
+.deck:focus-visible { outline-offset: -2px; }
+.deckbar { display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  border-bottom: 1px solid var(--line); position: relative; z-index: 1; }
+.step { flex: none; width: 44px; height: 44px; border-radius: 0; border: 1px solid var(--holo-dim);
+  background: rgba(3, 6, 15, .6); color: var(--holo); font: 600 26px/1 var(--ui); cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+  transition: background .2s var(--ease), transform .2s var(--snap), border-color .2s var(--ease); }
+.step:hover:not(:disabled) { background: rgba(111, 232, 247, .16); border-color: var(--holo); transform: translateY(-1px); }
+.step:active:not(:disabled) { transform: scale(.92); transition-duration: .08s; }
+.step:disabled { color: #8497b1; border-color: var(--line); cursor: default; box-shadow: none; }
+.pos { flex: 1; display: flex; align-items: baseline; justify-content: center; gap: 10px; min-width: 0; }
+.posn { font: 600 var(--t-small) var(--mono); color: var(--holo); letter-spacing: .08em; }
+.post { font-size: var(--t-small); font-weight: 600; letter-spacing: .22em; text-transform: uppercase; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stage { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; touch-action: pan-y; overscroll-behavior: contain;
+  position: relative; z-index: 1; scrollbar-width: thin; scrollbar-color: var(--holo-dim) transparent; }
+.slide { padding: 14px 16px 18px; }
+/* a slide arrives from the side it was turned to, and its panels settle in one after the
+   other: opacity and transform only, so the compositor does all of it */
+.bridge.live .slide { animation: slide-fwd .34s var(--ease) both; }
+.bridge.live .slide[data-dir="back"] { animation-name: slide-back; }
+@keyframes slide-fwd { from { opacity: 0; transform: translateX(24px) scale(.985); } }
+@keyframes slide-back { from { opacity: 0; transform: translateX(-24px) scale(.985); } }
+.bridge.live .slide .panel { animation: panel-in .42s var(--ease) both; }
+.bridge.live .slide .panel:nth-child(2) { animation-delay: .07s; }
+.bridge.live .slide .panel:nth-child(3) { animation-delay: .14s; }
+@keyframes panel-in { from { opacity: 0; transform: translateY(10px); } }
+.bridge.static .deck { overflow: visible; }
+.bridge.static .slide + .slide { border-top: 1px solid var(--holo-dim); }
+.stitle { display: flex; align-items: baseline; gap: 12px; margin: 0 0 12px;
+  font: 600 var(--t-title)/1.2 var(--ui); letter-spacing: .06em; color: var(--text); }
+.sno { font: var(--t-small) var(--mono); color: var(--holo); }
+.cols { display: grid; gap: var(--gap); grid-template-columns: minmax(0, 1fr); }
+
+/* ---------------------------------------------------------------- panels inside slides */
+.panel { background: rgba(3, 6, 15, .5); border: 1px solid var(--line); border-radius: 0;
+  padding: 12px 14px; min-width: 0; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04); }
+.ptitle { display: flex; align-items: center; gap: 8px; margin: 0 0 8px;
+  font: 600 var(--t-meta) var(--ui); letter-spacing: .2em; text-transform: uppercase; color: var(--holo); }
+.ptitle::before { content: ""; width: 6px; height: 6px; border-radius: 0; background: var(--holo);
+  box-shadow: 0 0 8px var(--holo); flex: none; }
+.ptitle .count { margin-left: auto; font: 12px var(--mono); color: var(--soft); letter-spacing: 0; }
+.calls .ptitle { color: var(--amber); } .calls .ptitle::before { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+.calls { border-color: rgba(255, 191, 94, .28); }
+.empty { color: var(--soft); }
+.empty.ok { color: var(--green); font-size: 16px; padding: 6px 0; }
+.list > li { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.list > li:last-child { border-bottom: 0; }
+.row1 { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.row3 { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.dimtext { color: var(--soft); }
+.meta, .age, .elapsed { margin-left: auto; font: 12px var(--mono); color: var(--soft); font-variant-numeric: tabular-nums; }
+.chip { font: 12px var(--mono); padding: 1px 8px; border-radius: 0; border: 1px solid var(--line);
+  color: var(--soft); background: rgba(3, 6, 15, .5); white-space: nowrap; }
+.chip.st-live, .chip.st-done { color: var(--green); border-color: rgba(134, 239, 180, .5); }
+.chip.st-working { color: var(--holo); border-color: var(--holo-dim); }
+.chip.st-alert { color: var(--rose); border-color: rgba(255, 134, 180, .6); }
+.chip.mail { color: var(--amber); border-color: rgba(255, 191, 94, .55); }
+.chip.src { color: var(--soft); }
+.badge { font: 12px var(--mono); padding: 1px 8px; border-radius: 0; border: 1px solid; white-space: nowrap; }
+.h-claude { color: var(--amber); } .h-codex { color: var(--holo); } .h-pi { color: var(--green); } .h-other { color: var(--rose); }
+.badge.app { color: var(--text); border-color: var(--line); }
+.pidno { font: 600 13px var(--mono); color: var(--text); }
+.proj { color: var(--violet); font-size: 13px; }
+.model { font: 12px var(--mono); color: var(--soft); }
+
+/* captain calls: the first thing on the bridge */
+.call { padding-left: 14px !important; position: relative; }
+.call::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 0;
+  background: var(--amber); box-shadow: 0 0 10px var(--amber); }
+.k-decision, .k-proposal { font: 700 11px var(--ui); letter-spacing: .14em; text-transform: uppercase; color: var(--void); border: 0; }
+.k-decision { background: var(--amber); } .k-proposal { background: var(--holo); }
+.cid { font: 12px var(--mono); color: var(--soft); }
+.call .q { margin: 6px 0; font-size: var(--t-lead); line-height: 1.45; color: var(--text); }
+.opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.opt { font-size: var(--t-small); padding: 2px 10px; border-radius: 0; border: 1px dashed rgba(255, 191, 94, .7); color: var(--amber); }
+.hint { margin-top: 8px; font-size: var(--t-meta); color: var(--soft); }
+.hint .cmd, .empty .cmd { color: var(--text); background: rgba(111, 232, 247, .1); border: 1px solid var(--holo-dim);
+  padding: 1px 7px; border-radius: 0; user-select: all; white-space: nowrap; cursor: text;
+  transition: background .2s var(--ease), border-color .2s var(--ease); }
+/* the command is the one thing to take from a call: it lights up under the pointer */
+.hint .cmd:hover, .empty .cmd:hover { background: rgba(111, 232, 247, .2); border-color: var(--holo); }
+.readouts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.readouts > div { background: rgba(3, 6, 15, .55); border: 1px solid var(--line); border-radius: 0; padding: 7px 10px; }
+.readouts dt { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--soft); }
+.readouts dd { font: 600 16px var(--mono); color: var(--text); }
+.readouts dd.ok { color: var(--green); } .readouts dd.bad { color: var(--rose); }
+.latest { margin-top: 10px; font-size: 13px; color: var(--text); }
+.latest .kind { font: 600 11px var(--mono); text-transform: uppercase; letter-spacing: .1em; margin-right: 4px; }
+
+/* crew */
+.seatgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.seat { border: 1px solid var(--line); border-radius: 0; padding: 10px 12px; background: rgba(3, 6, 15, .55); min-width: 0; }
+.seat.occ { border-color: rgba(134, 239, 180, .45); box-shadow: inset 3px 0 0 var(--green); }
+.seat.vacant { border-style: dashed; }
+.rank { font: 700 11px var(--mono); padding: 2px 6px; border-radius: 0; color: var(--void); }
+.rank.r1 { background: var(--amber); } .rank.r2 { background: var(--holo); } .rank.r3 { background: var(--rose); }
+.sname { font-weight: 600; letter-spacing: .12em; }
+.seat .occ { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; }
+.seat .thread { margin-top: 6px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* missions */
+.worker .intent { margin-top: 6px; color: var(--text); }
+.scan { flex: 1 1 60px; height: 3px; min-width: 40px; border-radius: 0; background: rgba(111, 232, 247, .12);
+  position: relative; overflow: hidden; }
+.worker.st-working .scan::after, .worker.st-live .scan::after { content: ""; position: absolute; top: 0; bottom: 0; width: 35%;
+  background: linear-gradient(90deg, transparent, var(--holo), transparent); animation: scan 2.2s linear infinite; }
+@keyframes scan { from { left: -35%; } to { left: 100%; } }
+.elapsed { color: var(--holo); }
+
+/* projects */
+.projgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.project { border: 1px solid var(--line); border-radius: 0; padding: 10px 12px; background: rgba(3, 6, 15, .55); }
+.pname { font-weight: 700; letter-spacing: .08em; color: var(--violet); margin-right: auto; }
+.purpose { margin: 6px 0; font-size: 13px; }
+.sources { display: flex; flex-wrap: wrap; gap: 5px; }
+
+/* quota */
+.quota-row .acct { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 100px; }
+.quota-row .pct { font: 600 15px var(--mono); }
+.q-ok { color: var(--green); } .q-mid { color: var(--amber); } .q-low { color: var(--rose); }
+.unknown { color: var(--soft); font-size: 12px; }
+.meter { margin-top: 8px; height: 8px; border-radius: 0; background: rgba(3, 6, 15, .8); border: 1px solid var(--line); overflow: hidden; }
+.meter .fill { height: 100%; border-radius: 0; background: currentColor; box-shadow: 0 0 12px currentColor; }
+.meter.q-ok .fill { color: var(--green); } .meter.q-mid .fill { color: var(--amber); } .meter.q-low .fill { color: var(--rose); }
+.meter.unknown { background: repeating-linear-gradient(135deg, rgba(3, 6, 15, .8) 0 5px, rgba(111, 232, 247, .1) 5px 10px); }
+.quota-row .row3 { font-size: 12px; }
+
+/* ship log */
+.timeline .ev { display: grid; grid-template-columns: 44px 84px minmax(0, 1fr); gap: 8px; align-items: baseline; padding: 6px 0; }
+.ev .when { font: 12px var(--mono); color: var(--soft); }
+.ev .kind { font: 600 11px var(--mono); text-transform: uppercase; letter-spacing: .06em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ev .what { font-size: 13px; }
+.rc-good .kind { color: var(--green); } .rc-bad .kind { color: var(--rose); } .rc-decided .kind { color: var(--amber); }
+.rc-move .kind { color: var(--holo); } .rc-dim .kind { color: var(--soft); }
+.move { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 3px 10px; align-items: center; }
+.move .tag { grid-row: span 2; text-align: center; font: 700 var(--t-micro) var(--ui); letter-spacing: .14em; text-transform: uppercase;
+  padding: 4px 2px; border-radius: 0; border: 1px solid var(--line); color: var(--soft); }
+.mv-move .tag { color: var(--void); background: var(--holo); border-color: var(--holo); }
+.mv-swap .tag { color: var(--void); background: var(--amber); border-color: var(--amber); }
+.mv-handoff .tag { color: var(--void); background: var(--rose); border-color: var(--rose); }
+.move .fromto { font-size: 13px; overflow-wrap: anywhere; }
+.move .arrow { color: var(--amber); }
+.move .meta { margin-left: 0; }
+.read .ref { display: block; margin-top: 4px; font-size: 12px; color: var(--soft); background: rgba(3, 6, 15, .7);
+  padding: 3px 8px; border-radius: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------------------------------------------------------------- footer and states */
+.foot { font-size: 12px; color: var(--soft); text-align: center; background: rgba(3, 6, 15, .85);
+  border-radius: 0; padding: 4px 12px; justify-self: center; }
+.foot .ro { font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--amber); }
+.boot { position: fixed; inset: 0; display: grid; place-items: center; color: var(--holo);
+  letter-spacing: .3em; text-transform: uppercase; font-size: 12px; }
+.lost { position: fixed; z-index: 10; left: 50%; top: 12px; transform: translateX(-50%);
+  background: var(--rose); color: var(--void); padding: 6px 14px; border-radius: 0;
+  font-weight: 700; letter-spacing: .14em; text-transform: uppercase; font-size: 12px; }
+.lost[hidden] { display: none; }
+
+/* ---------------------------------------------------------------- phone */
+@media (max-width: 759px) {
+  .hud { display: none; }
+  /* the cockpit fills the glass; the deck bar names the section, so the slide title and a
+     slimmer bar give the room back. The toggle shrinks to its icon (the name stays for
+     assistive tech), and a grip on the helm says it can be swiped down and away. */
+  .bridge.live .helm { padding: 14px 58px 8px 12px; }
+  .grip { display: block; position: absolute; top: 5px; left: 50%; width: 36px; height: 4px; margin-left: -18px;
+    border-radius: 0; background: var(--holo-dim); }
+  .cockpit-toggle { width: 44px; height: 44px; padding: 0; justify-content: center;
+    top: calc(var(--frame) + var(--gap) + 8px); right: calc(var(--frame) + var(--gap) + 8px); }
+  .cockpit-toggle .tlabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .cockpit-toggle .tkey { display: none; }
+  .bridge.live .deckbar { padding: 6px 8px; }
+  .bridge.live .step { width: 40px; height: 40px; font-size: 22px; border-radius: 0; }
+  .gauge .n { font-size: 16px; }
+  .gauge .l { font-size: 9px; letter-spacing: .08em; }
+  .tab { min-height: 44px; }
+  /* names stay in the accessibility tree; only the current one is drawn */
+  .tab:not(.on) .tname { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .foot .keys { display: none; }
+  .foot { font-size: var(--t-label); }
+  .slide { padding: 12px; }
+  .stitle { font-size: var(--t-title-s); }
+  .call .q { font-size: 15px; }
+  .timeline .ev { grid-template-columns: 38px minmax(0, 1fr); }
+  .timeline .ev .what { grid-column: 2; }
+  .timeline .ev .kind { grid-column: 2; grid-row: 1; }
+}
+
+/* ---------------------------------------------------------------- split (~900) */
+@media (min-width: 760px) {
+  .bridge.static { max-width: 1100px; margin: 0 auto; }
+  .decknav ol { flex-direction: column; overflow: visible; }
+  .decknav { align-self: start; }
+  .bridge.live .readouts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 760px) and (max-width: 1199px) {
+  /* the sight, where the galaxy is framed, is the largest thing in the cockpit: full height
+     on the left; the rail and the deck share a narrower column beside it, the rail flat
+     like on a phone */
+  .bridge.live .cockpit { grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-areas: "helm helm" "sight nav" "sight deck" "foot foot"; }
+  .bridge.live .decknav ol { flex-direction: row; overflow-x: auto; }
+  .bridge.live .decknav li { flex: 1 1 0; min-width: 0; }
+  .bridge.live .tab { justify-content: center; gap: 5px; padding: 6px 4px; }
+  /* the deck bar already names the current section; names stay in the accessibility tree */
+  .bridge.live .tname { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .bridge.live .cols { grid-template-columns: minmax(0, 1fr); }
+  .bridge.live .readouts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bridge.live .slide { padding: 12px 12px 16px; }
+  .bridge.live .call .q { font-size: 15px; }
+}
+/* below the desktop layout the deck bar is the slide's title ("1 / 6 CAPTAIN CALLS"); the
+   heading stays in the accessibility tree, and the first call rises by its height */
+@media (max-width: 1199px) {
+  .bridge.live .stitle { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap; }
+}
+
+/* ---------------------------------------------------------------- desktop */
+@media (min-width: 1200px) {
+  .bridge.live .cockpit { grid-template-columns: 230px minmax(0, 1fr) minmax(560px, 46%);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: "helm helm helm" "nav sight deck" "foot foot foot"; }
+  /* the instruments angle in toward the sight, as if mounted around it */
+  .bridge.live .decknav { transform: perspective(1400px) rotateY(7deg); transform-origin: left center; }
+  .bridge.live .deck { transform: perspective(1800px) rotateY(-5deg); transform-origin: right center; }
+  .logo { font-size: 22px; }
+  .cols { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+  .cols.three { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+  .cols.three .reads { grid-column: 1 / -1; }
+  .bridge.live .readouts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bridge.static { max-width: 1280px; }
+}
+@media (min-width: 2400px) {
+  html, body { font-size: 17px; }
+  .bridge.live .cockpit { grid-template-columns: 300px minmax(0, 1fr) minmax(760px, 42%); }
+  .stitle { font-size: 28px; }
+  /* blurring the moving sky behind this much glass costs ~25 fps at 4K; the glass is
+     near-opaque anyway, so it is a touch more opaque here instead */
+  .helm, .decknav, .deck { backdrop-filter: none; -webkit-backdrop-filter: none;
+    background: rgba(6, 13, 28, .88); }
+}
+
+/* ---------------------------------------------------------------- reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .worker .scan::after { left: 0 !important; width: 100% !important; opacity: .45; }
+  .decknav, .deck { transform: none !important; }
+}
